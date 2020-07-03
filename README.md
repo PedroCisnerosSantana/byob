@@ -1,9 +1,10 @@
-![logo](https://malwared.com/wp-content/uploads/2018/09/byob_black-06.png)
-# BYOB (Build Your Own Botnet) [![Tweet](https://img.shields.io/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/intent/tweet?text=BYOB%20(Build%20Your%20Own%20Botnet)&url=https://github.com/malwaredllc/byob&via=malwaredllc&hashtags=botnet,python,infosec,github)
+<img src="https://raw.githubusercontent.com/malwaredllc/byob/master/byob/static/byob_logo_email-black.png" width="400px"></img>
+# Build Your Own Botnet [![Tweet](https://img.shields.io/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/intent/tweet?text=BYOB%20(Build%20Your%20Own%20Botnet)&url=https://github.com/malwaredllc/byob&via=malwaredllc&hashtags=botnet,python,infosec,github)
 [![license](https://img.shields.io/badge/license-GPL-brightgreen.svg)](https://github.com/malwaredllc/byob/blob/master/LICENSE)
-[![version](https://img.shields.io/badge/version-0.5-lightgrey.svg)](https://github.com/malwaredllc/byob)
+[![version](https://img.shields.io/badge/version-1.0-lightgrey.svg)](https://github.com/malwaredllc/byob)
 [![build](https://img.shields.io/travis/com/malwaredllc/byob/master.svg)](https://travis-ci.com/malwaredllc/byob.svg?branch=master)
 
+Questions? [Join our Discord server](https://discord.gg/8FsSrw7)
 
 __Disclaimer__: This project should be used for authorized testing or educational purposes only.
 
@@ -19,10 +20,23 @@ features *without* having to write a **RAT** (Remote Administration Tool) or a
 *The RAT's key feature is that arbitrary code/files can be remotely loaded into memory
 from the C2 and executed on the target machine without writing anything to the disk.*
 
-Supports Python 2 & 3.
+This project has 2 main parts: the **original console-based application** (`/byob`) and the **web GUI** (`/web-gui`).
+
+# Web GUI
+
+## Dashboard
+A control panel for your C2 server with a point-and-click interface for executing post-exploitation modules across your botnet. The dashboard includes a map of your bots across the globe, and hashrate trackers & graphs for those of you mining Monero.
+
+## Payload Generator
+The payload generator uses black magic involving Docker containers & Wine servers to compile executable payloads for any platform/architecture you select.
+
+## Terminal Emulator
+The web app includes an in-browser terminal emulator so you can still have direct shell access even when using the GUI
+
+# Console Application
 
 ## Client
-[![client](https://img.shields.io/badge/byob-client-blue.svg)](https://github.com/colental/byob/blob/master/byob/client.py)
+[![client](https://img.shields.io/badge/byob-client-blue.svg)](https://github.com/malwaredllc/byob/blob/master/byob/payloads.py)
 
 *Generate fully-undetectable clients with staged payloads, remote imports, and unlimited post-exploitation modules*
 
@@ -59,7 +73,7 @@ in the payload stager which is generated along with it
 12) __Prevent Reverse-Engineering__: by default, clients will abort execution if a virtual machine or sandbox is detected
 
 ## Modules
-[![modules](https://img.shields.io/badge/byob-modules-blue.svg)](https://github.com/colental/byob/blob/master/byob/modules)
+[![modules](https://img.shields.io/badge/byob-modules-blue.svg)](https://github.com/malwaredllc/byob/blob/master/byob/modules)
 
 *Post-exploitation modules that are remotely importable by clients*
 
@@ -76,10 +90,10 @@ in the payload stager which is generated along with it
 11) __Process Control__ (`byob.modules.process`): list/search/kill/monitor currently running processes on the host
 12) __iCloud__ (`byob.modules.icloud`): check for logged in iCloud account on macOS
 13) __Spreader__ (`byob.modules.spreader`): spread client to other hosts via emails disguised as a plugin update
-14) __Miner__ (`byob.modules.miner`): run a cryptocurrency miner in the background (supports Bitcoin & Litecoin)
+14) __Miner__ (`byob.core.miner`): mine Monero in the background using the built-in miner or XMRig
 
 ## Server
-[![server](https://img.shields.io/badge/byob-server-blue.svg)](https://github.com/colental/byob/blob/master/byob/server.py)
+[![server](https://img.shields.io/badge/byob-server-blue.svg)](https://github.com/malwaredllc/byob/blob/master/byob/server.py)
 
 *Command & control server with persistent database and console*
 
@@ -93,7 +107,7 @@ to remotely import without writing them to the disk of the target machines, allo
 packages not installed on the target machines
 
 ## Core
-[![core](https://img.shields.io/badge/byob-core-blue.svg)](https://github.com/colental/byob/blob/master/byob/core)
+[![core](https://img.shields.io/badge/byob-core-blue.svg)](https://github.com/malwaredllc/byob/blob/master/byob/core)
 
 *Core framework modules used by the generator and the server*
 
@@ -115,12 +129,3 @@ ________________________________________________________________________________
 1) __Remote Import Encryption__ - encryption for data streams of packages/modules being remotely imported (to maintain confidentiality/authenticity/integrity and prevent any remote code execution vulnerabilities arising from deserialization)
 2) __Transport Types__ - add support for more transport types (HTTP/S, DNS, etc.)
 3) __Bug Fixes__ - fix any bugs/issues
-________________________________________________________________________________________________
-
-### Contact
-
-__Website__: https://malwared.com
-
-__Email__: security@malwared.com
-
-__Twitter__: [![twitter](https://img.shields.io/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/malwaredllc)

